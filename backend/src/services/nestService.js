@@ -16,6 +16,24 @@ import axios from 'axios';
 const SDM_BASE_URL = 'https://smartdevicemanagement.googleapis.com/v1';
 const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+/**
+ * Validates that a device ID matches the expected Google SDM format:
+ *   enterprises/<projectId>/devices/<deviceId>
+ * This prevents Server-Side Request Forgery (SSRF) by rejecting any value
+ * that could inject path traversal sequences or extra URL segments.
+ *
+ * @param {string} deviceId
+ * @throws {Error} if the format is invalid.
+ */
+function assertValidDeviceId(deviceId) {
+  // Only alphanumeric characters, hyphens, and forward slashes are allowed.
+  // The path must follow the exact three-segment SDM pattern.
+  const DEVICE_ID_PATTERN = /^enterprises\/[a-zA-Z0-9_-]+\/devices\/[a-zA-Z0-9_-]+$/;
+  if (typeof deviceId !== 'string' || !DEVICE_ID_PATTERN.test(deviceId)) {
+    throw new Error(`Invalid device ID format: "${deviceId}"`);
+  }
+}
+
 let cachedAccessToken = null;
 let tokenExpiresAt = 0;
 
@@ -81,6 +99,7 @@ export async function listDevices() {
  * @returns {Promise<object>} Device detail object.
  */
 export async function getDevice(deviceId) {
+  assertValidDeviceId(deviceId);
   const client = await sdmClient();
   const response = await client.get(`/${deviceId}`);
   return response.data;
@@ -94,6 +113,7 @@ export async function getDevice(deviceId) {
  * @returns {Promise<object>} API response data.
  */
 export async function setTemperature(deviceId, heatCelsius, coolCelsius) {
+  assertValidDeviceId(deviceId);
   const client = await sdmClient();
   const response = await client.post(`/${deviceId}:executeCommand`, {
     command: 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange',
@@ -112,6 +132,7 @@ export async function setTemperature(deviceId, heatCelsius, coolCelsius) {
  * @returns {Promise<object>} API response data.
  */
 export async function setThermostatMode(deviceId, mode) {
+  assertValidDeviceId(deviceId);
   const client = await sdmClient();
   const response = await client.post(`/${deviceId}:executeCommand`, {
     command: 'sdm.devices.commands.ThermostatMode.SetMode',
