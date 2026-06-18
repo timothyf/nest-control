@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
   timeout: 10_000,
 });
 
@@ -43,5 +43,10 @@ export const weatherApi = {
   /** Get 7-day forecast */
   getForecast() {
     return api.get('/weather/forecast');
+  },
+
+  /** Get active National Weather Service alerts */
+  getAlerts() {
+    return api.get('/weather/alerts');
   },
 };

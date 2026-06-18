@@ -9,11 +9,14 @@
  * Optional environment variables (defaults to San Francisco, CA):
  *   WEATHER_LATITUDE   - Latitude for the weather location
  *   WEATHER_LONGITUDE  - Longitude for the weather location
+ *   NWS_USER_AGENT     - User agent for api.weather.gov requests
  */
 
 import axios from 'axios';
 
 const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1';
+const NWS_BASE_URL = 'https://api.weather.gov';
+const NWS_USER_AGENT = process.env.NWS_USER_AGENT ?? 'nest-control/1.0';
 
 /**
  * Returns the configured latitude/longitude, falling back to San Francisco.
@@ -48,6 +51,7 @@ export async function getCurrentWeather() {
       ].join(','),
       temperature_unit: 'fahrenheit',
       wind_speed_unit: 'mph',
+      timezone: 'auto',
     },
   });
 
@@ -77,6 +81,28 @@ export async function getForecast() {
       temperature_unit: 'fahrenheit',
       wind_speed_unit: 'mph',
       forecast_days: 7,
+      timezone: 'auto',
+    },
+  });
+
+  return response.data;
+}
+
+/**
+ * Fetches active National Weather Service alerts for the configured location.
+ *
+ * @returns {Promise<object>} GeoJSON alert collection from api.weather.gov.
+ */
+export async function getWeatherAlerts() {
+  const { latitude, longitude } = getCoordinates();
+
+  const response = await axios.get(`${NWS_BASE_URL}/alerts/active`, {
+    params: {
+      point: `${latitude},${longitude}`,
+    },
+    headers: {
+      Accept: 'application/geo+json',
+      'User-Agent': NWS_USER_AGENT,
     },
   });
 

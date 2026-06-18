@@ -22,24 +22,24 @@ export const useNestStore = defineStore('nest', {
   },
 
   actions: {
-    async fetchDevices() {
-      this.loading = true;
+    async fetchDevices({ silent = false } = {}) {
+      if (!silent) this.loading = true;
       this.error = null;
       try {
         const { data } = await nestApi.listDevices();
         this.devices = data.devices;
         if (!this.selectedDevice && this.devices.length > 0) {
-          await this.selectDevice(this.devices[0].name);
+          await this.selectDevice(this.devices[0].name, { silent });
         }
       } catch (err) {
         this.error = err.message;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
 
-    async selectDevice(deviceId) {
-      this.loading = true;
+    async selectDevice(deviceId, { silent = false } = {}) {
+      if (!silent) this.loading = true;
       this.error = null;
       try {
         const { data } = await nestApi.getDevice(deviceId);
@@ -47,7 +47,7 @@ export const useNestStore = defineStore('nest', {
       } catch (err) {
         this.error = err.message;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
 

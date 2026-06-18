@@ -97,7 +97,7 @@ npm run dev
 
 Or in separate terminals:
 ```bash
-npm run dev:backend   # http://localhost:3000
+npm run dev:backend   # http://localhost:3001
 npm run dev:frontend  # http://localhost:5173
 ```
 

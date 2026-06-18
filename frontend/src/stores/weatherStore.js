@@ -26,12 +26,21 @@ const WMO_DESCRIPTIONS = {
   99: 'Thunderstorm with hail',
 };
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export const useWeatherStore = defineStore('weather', {
   state: () => ({
     current: null,
     forecast: null,
+    alerts: null,
     loading: false,
     error: null,
+    alertsError: null,
   }),
 
   getters: {
@@ -40,23 +49,40 @@ export const useWeatherStore = defineStore('weather', {
       return code !== undefined ? (WMO_DESCRIPTIONS[code] ?? 'Unknown') : null;
     },
     currentTempF: (state) => state.current?.current?.temperature_2m ?? null,
+    activeAlerts: (state) =>
+      (state.alerts?.features ?? []).map((alert) => ({
+        id: alert.id,
+        event: alert.properties?.event ?? 'Weather Alert',
+        headline: alert.properties?.headline ?? '',
+        area: alert.properties?.areaDesc ?? '',
+        severity: alert.properties?.severity ?? 'Unknown',
+        certainty: alert.properties?.certainty ?? '',
+        urgency: alert.properties?.urgency ?? '',
+        expires: alert.properties?.expires ?? null,
+        instruction: alert.properties?.instruction ?? '',
+      })),
     forecastDays: (state) => {
       const f = state.forecast?.daily;
       if (!f) return [];
-      return f.time.map((date, i) => ({
-        date,
-        description: WMO_DESCRIPTIONS[f.weather_code[i]] ?? 'Unknown',
-        tempMax: f.temperature_2m_max[i],
-        tempMin: f.temperature_2m_min[i],
-        precipProb: f.precipitation_probability_max[i],
-        windMax: f.wind_speed_10m_max[i],
-      }));
+      const today = localDateKey();
+
+      return f.time
+        .map((date, i) => ({
+          date,
+          description: WMO_DESCRIPTIONS[f.weather_code[i]] ?? 'Unknown',
+          tempMax: f.temperature_2m_max[i],
+          tempMin: f.temperature_2m_min[i],
+          precipProb: f.precipitation_probability_max[i],
+          windMax: f.wind_speed_10m_max[i],
+        }))
+        .filter((day) => day.date >= today)
+        .slice(0, 7);
     },
   },
 
   actions: {
-    async fetchCurrentWeather() {
-      this.loading = true;
+    async fetchCurrentWeather({ silent = false } = {}) {
+      if (!silent) this.loading = true;
       this.error = null;
       try {
         const { data } = await weatherApi.getCurrent();
@@ -64,12 +90,12 @@ export const useWeatherStore = defineStore('weather', {
       } catch (err) {
         this.error = err.message;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
 
-    async fetchForecast() {
-      this.loading = true;
+    async fetchForecast({ silent = false } = {}) {
+      if (!silent) this.loading = true;
       this.error = null;
       try {
         const { data } = await weatherApi.getForecast();
@@ -77,12 +103,26 @@ export const useWeatherStore = defineStore('weather', {
       } catch (err) {
         this.error = err.message;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
 
-    async fetchAll() {
-      await Promise.all([this.fetchCurrentWeather(), this.fetchForecast()]);
+    async fetchAlerts() {
+      this.alertsError = null;
+      try {
+        const { data } = await weatherApi.getAlerts();
+        this.alerts = data;
+      } catch (err) {
+        this.alertsError = err.message;
+      }
+    },
+
+    async fetchAll(options) {
+      await Promise.all([
+        this.fetchCurrentWeather(options),
+        this.fetchForecast(options),
+        this.fetchAlerts(options),
+      ]);
     },
   },
 });

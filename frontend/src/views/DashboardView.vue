@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import ThermostatCard from '../components/ThermostatCard.vue';
 import WeatherCard from '../components/WeatherCard.vue';
 import { useNestStore } from '../stores/nestStore.js';
@@ -7,9 +7,37 @@ import { useWeatherStore } from '../stores/weatherStore.js';
 
 const nestStore = useNestStore();
 const weatherStore = useWeatherStore();
+const POLL_INTERVAL_MS = 60_000;
+
+let pollTimer = null;
+let polling = false;
+
+async function refreshDashboard({ silent = false } = {}) {
+  if (polling) return;
+
+  polling = true;
+  try {
+    const nestRefresh = nestStore.selectedDevice
+      ? nestStore.selectDevice(nestStore.selectedDevice.name, { silent })
+      : nestStore.fetchDevices({ silent });
+
+    await Promise.all([nestRefresh, weatherStore.fetchAll({ silent })]);
+  } finally {
+    polling = false;
+  }
+}
 
 onMounted(async () => {
-  await Promise.all([nestStore.fetchDevices(), weatherStore.fetchAll()]);
+  await refreshDashboard();
+  pollTimer = window.setInterval(() => {
+    refreshDashboard({ silent: true });
+  }, POLL_INTERVAL_MS);
+});
+
+onUnmounted(() => {
+  if (pollTimer) {
+    window.clearInterval(pollTimer);
+  }
 });
 </script>
 

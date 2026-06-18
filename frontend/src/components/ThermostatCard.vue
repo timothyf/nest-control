@@ -1,33 +1,41 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useNestStore } from '../stores/nestStore.js';
 
 const nestStore = useNestStore();
 
 // Celsius → Fahrenheit helper
-const toF = (c) => (c !== null ? Math.round(c * 9 / 5 + 32) : '--');
+const toF = (c) => (c !== null && c !== undefined ? Math.round(c * 9 / 5 + 32) : null);
+const formatF = (c) => toF(c) ?? '--';
 
-const currentTempF = computed(() => toF(nestStore.currentTemp));
+const temperatureSetpoint = computed(
+  () => nestStore.thermostatTraits['sdm.devices.traits.ThermostatTemperatureSetpoint'] ?? null,
+);
+
+const currentTempF = computed(() => formatF(nestStore.currentTemp));
 const currentMode = computed(() => nestStore.currentMode ?? '--');
-const heatSetpoint = computed(() => {
-  const t = nestStore.thermostatTraits['sdm.devices.traits.ThermostatTemperatureSetpoint'];
-  return t ? toF(t.heatCelsius) : '--';
-});
-const coolSetpoint = computed(() => {
-  const t = nestStore.thermostatTraits['sdm.devices.traits.ThermostatTemperatureSetpoint'];
-  return t ? toF(t.coolCelsius) : '--';
-});
+const heatSetpoint = computed(() => formatF(temperatureSetpoint.value?.heatCelsius));
+const coolSetpoint = computed(() => formatF(temperatureSetpoint.value?.coolCelsius));
+const currentHeatInput = computed(() => toF(temperatureSetpoint.value?.heatCelsius));
+const currentCoolInput = computed(() => toF(temperatureSetpoint.value?.coolCelsius));
 
 const newHeatF = ref('');
 const newCoolF = ref('');
 const modeOptions = ['HEAT', 'COOL', 'HEATCOOL', 'OFF'];
 
+watch(
+  [currentHeatInput, currentCoolInput],
+  ([heatF, coolF]) => {
+    newHeatF.value = heatF ?? '';
+    newCoolF.value = coolF ?? '';
+  },
+  { immediate: true },
+);
+
 async function applyTemperature() {
   const heatC = (Number(newHeatF.value) - 32) * 5 / 9;
   const coolC = (Number(newCoolF.value) - 32) * 5 / 9;
   await nestStore.setTemperature(heatC, coolC);
-  newHeatF.value = '';
-  newCoolF.value = '';
 }
 </script>
 
@@ -63,7 +71,7 @@ async function applyTemperature() {
 
       <div class="controls">
         <h3>Set Temperature Range</h3>
-        <div class="row">
+        <div class="row temperature-row">
           <label>Heat (°F) <input v-model="newHeatF" type="number" placeholder="e.g. 68" /></label>
           <label>Cool (°F) <input v-model="newCoolF" type="number" placeholder="e.g. 76" /></label>
           <button @click="applyTemperature">Apply</button>
@@ -110,6 +118,7 @@ h3 { margin: 1rem 0 0.5rem; font-size: 1rem; color: #555; }
 .label { font-size: 0.75rem; color: #888; }
 .value { font-size: 1.5rem; font-weight: 700; color: #333; }
 .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.temperature-row { align-items: flex-end; }
 label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.25rem; }
 input[type='number'] {
   width: 90px;
@@ -126,9 +135,17 @@ button {
   cursor: pointer;
   font-size: 0.9rem;
   transition: background 0.2s;
+  color: cornflowerblue;
+  font-weight: 700;
+}
+.controls {
+  margin-top: 45px;
 }
 button:hover { background: #e0e0e0; }
-button.active { background: #4caf50; color: #fff; border-color: #4caf50; }
+button.active { 
+  background: lightgreen; 
+  border-color: #4caf50; 
+}
 .loading, .empty { color: #888; }
 .error { color: #e53935; }
 </style>

@@ -57,8 +57,8 @@ body {
 h1,
 h2 {
   font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+  font-weight: 800;
+  color: deepskyblue;
 }
 
 h1 {
